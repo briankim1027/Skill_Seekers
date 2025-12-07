@@ -1,0 +1,32 @@
+{
+  "name": "crewai",
+  "description": "CrewAI framework for building multi-agent AI systems. Use for AI agents, tasks, crews, tools, and collaborative AI workflows.",
+  "base_url": "https://docs.crewai.com/",
+  "start_urls": [
+    "https://docs.crewai.com/introduction",
+    "https://docs.crewai.com/installation",
+    "https://docs.crewai.com/quickstart",
+    "https://docs.crewai.com/concepts/agents",
+    "https://docs.crewai.com/concepts/tasks",
+    "https://docs.crewai.com/concepts/crews"
+  ],
+  "selectors": {
+    "main_content": "article",
+    "title": "h1",
+    "code_blocks": "pre code"
+  },
+  "url_patterns": {
+    "include": ["/introduction", "/installation", "/quickstart", "/guides", "/concepts", "/tools", "/api-reference", "/examples"],
+    "exclude": ["/changelog", "/enterprise"]
+  },
+  "categories": {
+    "getting_started": ["introduction", "installation", "quickstart", "getting-started"],
+    "concepts": ["agents", "tasks", "crews", "flows", "processes", "concepts"],
+    "guides": ["guides", "tutorial"],
+    "tools": ["tools", "integrations"],
+    "api": ["api-reference", "reference"],
+    "examples": ["examples", "use-cases"]
+  },
+  "rate_limit": 0.5,
+  "max_pages": 400
+}

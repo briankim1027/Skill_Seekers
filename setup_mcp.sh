@@ -16,15 +16,22 @@ RED='\033[0;31m'
 NC='\033[0m' # No Color
 
 # Step 1: Check Python version
+# Step 1: Check Python version
 echo "Step 1: Checking Python version..."
-if ! command -v python3 &> /dev/null; then
-    echo -e "${RED}❌ Error: python3 not found${NC}"
+
+# Detect proper Python executable
+if command -v python3 &> /dev/null; then
+    PYTHON_CMD="python3"
+elif command -v python &> /dev/null; then
+    PYTHON_CMD="python"
+else
+    echo -e "${RED}❌ Error: python3 or python not found${NC}"
     echo "Please install Python 3.7 or higher"
     exit 1
 fi
 
-PYTHON_VERSION=$(python3 --version | cut -d' ' -f2)
-echo -e "${GREEN}✓${NC} Python $PYTHON_VERSION found"
+PYTHON_VERSION=$($PYTHON_CMD --version 2>&1 | cut -d' ' -f2)
+echo -e "${GREEN}✓${NC} Using $PYTHON_CMD ($PYTHON_VERSION)"
 echo ""
 
 # Step 2: Get repository path
@@ -39,12 +46,23 @@ echo "Step 3: Installing Python dependencies..."
 # Check if we're in a virtual environment
 if [[ -n "$VIRTUAL_ENV" ]]; then
     echo -e "${GREEN}✓${NC} Virtual environment detected: $VIRTUAL_ENV"
-    PIP_INSTALL_CMD="pip install"
+    PIP_INSTALL_CMD="$PYTHON_CMD -m pip install"
 elif [[ -d "venv" ]]; then
     echo -e "${YELLOW}⚠${NC} Virtual environment found but not activated"
     echo "Activating venv..."
-    source venv/bin/activate
-    PIP_INSTALL_CMD="pip install"
+    
+    # Detect activation script (Windows vs Unix)
+    if [[ -f "venv/Scripts/activate" ]]; then
+        ACTIVATE_SCRIPT="venv/Scripts/activate"
+    elif [[ -f "venv/bin/activate" ]]; then
+        ACTIVATE_SCRIPT="venv/bin/activate"
+    else
+        echo -e "${RED}❌ Error: venv found but activation script missing${NC}"
+        exit 1
+    fi
+    
+    source "$ACTIVATE_SCRIPT"
+    PIP_INSTALL_CMD="$PYTHON_CMD -m pip install"
 else
     echo -e "${YELLOW}⚠${NC} No virtual environment found"
     echo "It's recommended to use a virtual environment to avoid conflicts."
@@ -54,21 +72,34 @@ else
 
     if [[ $REPLY =~ ^[Yy]$ ]]; then
         echo "Creating virtual environment..."
-        python3 -m venv venv || {
+        $PYTHON_CMD -m venv venv || {
             echo -e "${RED}❌ Failed to create virtual environment${NC}"
             echo "Falling back to system install..."
-            PIP_INSTALL_CMD="pip3 install --user --break-system-packages"
+            PIP_INSTALL_CMD="$PYTHON_CMD -m pip install --user --break-system-packages"
         }
 
         if [[ -d "venv" ]]; then
-            source venv/bin/activate
-            PIP_INSTALL_CMD="pip install"
-            echo -e "${GREEN}✓${NC} Virtual environment created and activated"
+            # Detect activation script (Windows vs Unix)
+            if [[ -f "venv/Scripts/activate" ]]; then
+                ACTIVATE_SCRIPT="venv/Scripts/activate"
+            elif [[ -f "venv/bin/activate" ]]; then
+                ACTIVATE_SCRIPT="venv/bin/activate"
+            fi
+            
+            if [[ -n "$ACTIVATE_SCRIPT" ]]; then
+                source "$ACTIVATE_SCRIPT"
+                PIP_INSTALL_CMD="$PYTHON_CMD -m pip install"
+                echo -e "${GREEN}✓${NC} Virtual environment created and activated"
+            else
+                 echo -e "${RED}❌ Error: venv created but activation script not found${NC}"
+                 echo "Install check failed. Falling back..."
+                 PIP_INSTALL_CMD="$PYTHON_CMD -m pip install --user --break-system-packages"
+            fi
         fi
     else
         echo "Proceeding with system install (using --user --break-system-packages)..."
         echo -e "${YELLOW}Note:${NC} This may override system-managed packages"
-        PIP_INSTALL_CMD="pip3 install --user --break-system-packages"
+        PIP_INSTALL_CMD="$PYTHON_CMD -m pip install --user --break-system-packages"
     fi
 fi
 
@@ -91,7 +122,7 @@ echo ""
 
 # Step 4: Test MCP server
 echo "Step 4: Testing MCP server..."
-timeout 3 python3 src/skill_seekers/mcp/server.py 2>/dev/null || {
+timeout 3 $PYTHON_CMD src/skill_seekers/mcp/server.py 2>/dev/null || {
     if [ $? -eq 124 ]; then
         echo -e "${GREEN}✓${NC} MCP server starts correctly (timeout expected)"
     else
@@ -116,7 +147,7 @@ if [[ $REPLY =~ ^[Yy]$ ]]; then
 
     if command -v pytest &> /dev/null; then
         echo "Running MCP server tests..."
-        python3 -m pytest tests/test_mcp_server.py -v --tb=short || {
+        $PYTHON_CMD -m pytest tests/test_mcp_server.py -v --tb=short || {
             echo -e "${RED}❌ Some tests failed${NC}"
             echo "The server may still work, but please check the errors above"
         }
@@ -139,7 +170,7 @@ echo ""
 echo -e "${GREEN}{"
 echo "  \"mcpServers\": {"
 echo "    \"skill-seeker\": {"
-echo "      \"command\": \"python3\","
+echo "      \"command\": \"$PYTHON_CMD\","
 echo "      \"args\": ["
 echo "        \"$REPO_PATH/src/skill_seekers/mcp/server.py\""
 echo "      ],"
@@ -180,7 +211,7 @@ if [[ $REPLY =~ ^[Yy]$ ]]; then
 {
   "mcpServers": {
     "skill-seeker": {
-      "command": "python3",
+      "command": "$PYTHON_CMD",
       "args": [
         "$REPO_PATH/src/skill_seekers/mcp/server.py"
       ],
